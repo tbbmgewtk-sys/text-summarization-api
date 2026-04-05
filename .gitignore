@@ -1,0 +1,13 @@
+venv/
+__pycache__/
+*.pyc
+mlruns/
+checkpoints/
+checkpoints_final/
+.DS_Store
+.env
+.venv
+fine_tune_analysis/
+deployment/
+alerts.json
+drift_logs.log
