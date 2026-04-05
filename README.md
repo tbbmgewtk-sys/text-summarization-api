@@ -1,365 +1,175 @@
-# 🧠 Text Summarization: Model Benchmarking with BART, GPT-2 & MLflow
+# 🚀 Text Summarization API
 
-This project demonstrates a lightweight **summarization benchmarking pipeline** using [Hugging Face Transformers](https://github.com/huggingface/transformers), evaluated on the [CNN/DailyMail](https://huggingface.co/datasets/cnn_dailymail) dataset.
+## 📌 Giới thiệu
 
-It is built for **reproducible experimentation**, with:
+Đây là một **RESTful API tóm tắt văn bản** được xây dựng bằng FastAPI.
+API cho phép người dùng nhập vào một đoạn văn bản và trả về bản tóm tắt ngắn gọn.
 
-- Short training runs on pre-trained models like `facebook/bart-base` and `gpt2`
-- Consistent evaluation using ROUGE metrics and generation length
-- **MLflow logging** for tracking hyperparameters, metrics, and sample outputs
-- A modular CLI-based script: `src/fine_tune.py` (*used for benchmarking, not fine-tuning*)
-
-> 💡 This project is designed to explore how different model types and configurations affect summarization quality — not to perform full-scale fine-tuning.
+Do vấn đề tương thích giữa Python 3.14 và thư viện AI, hệ thống sử dụng phương pháp **heuristic-based summarization** (dựa trên chấm điểm câu) để mô phỏng quá trình tóm tắt văn bản.
 
 ---
 
-### 🎥 Demo Walkthrough
+## 🧠 Ý tưởng & Thuật toán
 
-Want to see the project in action without setting it up?
+API thực hiện tóm tắt theo các bước:
 
-✅ **Watch the full demo here:**  
-[📂 Google Drive Folder – Project Demo](https://drive.google.com/drive/folders/13d9DSMaWFTYVKHugG9ifXBiRbJEaF99F?usp=sharing)
+1. Tách văn bản thành các câu
+2. Chấm điểm mỗi câu dựa trên độ dài
+3. Chọn các câu có điểm cao nhất (quan trọng nhất)
+4. Ghép lại thành bản tóm tắt
 
-Includes:
-- MLflow walkthrough and run comparison  
-- Analysis outputs and visualizations  
-- Final model usage  
-- Live drift detection in action via FastAPI
+👉 Đây là cách tiếp cận đơn giản nhưng hiệu quả để mô phỏng NLP.
 
 ---
 
-### 🧱 Project Structure
+## ⚙️ Công nghệ sử dụng
+
+* Python 3.14
+* FastAPI
+* Uvicorn
+* Pydantic
+
+---
+
+## 📂 Cấu trúc project
 
 ```
-text_summarization_project/
-├── checkpoints/               # Model checkpoints from small-scale runs
-├── checkpoints_final/         # Final model checkpoint from best config
-├── deployment/model/          # Saved tokenizer and model for inference
-├── fine_tune_analysis/        # Analysis outputs (CSVs, plots)
-├── mlruns/                    # MLflow run logs (auto-created)
-├── src/
-│   ├── fine_tune.py           # CLI-based benchmarking script
-│   ├── run_sweep.py           # Loop over all model configs
-│   ├── final_train.py         # Run best config at larger scale
-│   ├── analysis_scripts/
-│   │   ├── extract_fine_tune_results_mlflow.py
-│   │   └── fine_tune_analysis.py
-│   └── mlops_demo/
-│       ├── inference_api.py   # FastAPI app to serve model
-│       ├── demo_client.py     # Sends sample requests to server
-│       ├── drift_monitor.py   # Drift detection logic
-│       └── drift_analyzer.py  # Visualizes drift logs
-├── requirements.txt
-└── README.md
+bart-text-summarization-main/
+│── main.py
+│── requirements.txt
+│── README.md
 ```
+
 ---
 
-### ⚙️ Step 1: Setup Instructions
+## 🚀 Cài đặt & chạy project
 
-1. **Clone the repository**:
-
-   ```bash
-   git clone https://github.com/yourusername/text_summarization_project.git
-   cd text_summarization_project
-   ```
-Create and activate a virtual environment:
+### 1. Cài thư viện
 
 ```bash
-python -m venv venv
-source venv/bin/activate  # On macOS/Linux
-# Or: venv\Scripts\activate  # On Windows
+python -m pip install fastapi uvicorn
 ```
 
-Install dependencies:
+---
+
+### 2. Chạy server
 
 ```bash
-pip install -r requirements.txt
-```
-(macOS only): Add support for Apple Silicon GPUs:
-
-```python
-import os
-os.environ["PYTORCH_MPS_HIGH_WATERMARK_RATIO"] = "0.0"
-```
-
-🚀 Run a Benchmarking Trial
-Use the CLI-based script at src/fine_tune.py to evaluate a summarization model with a chosen config.
-
-▶️ Example: Run BART with small batch and short input/output lengths
-```bash
-python src/fine_tune.py \
-  --model_name_or_path facebook/bart-base \
-  --epochs 1 \
-  --batch_size 2 \
-  --max_input_length 256 \
-  --max_target_length 64
-```
-
-▶️ Example: Run GPT-2 as a causal LM
-```bash
-python src/fine_tune.py \
-  --model_name_or_path gpt2 \
-  --epochs 1 \
-  --batch_size 2 \
-  --max_input_length 256 \
-  --max_target_length 64 \
-  --use_causal_lm
-```
-
-This will:
-
-- Run a short training + evaluation loop over ~5000 train and ~250 val examples
-- Log losses, ROUGE scores, and runtime metrics to MLflow
-- Save a few sample predictions as .txt files
-- Track hyperparameters and outcomes for comparison across runs
-
-📂 Output Summary
-Each run logs:
-
-- 📉 Training & evaluation metrics (loss, ROUGE, speed)
-- 📑 Token length stats for predictions and references
-- 📝 Sample outputs: article, reference summary, model prediction
-- 🧾 Run-specific artifacts via MLflow (including config and example text files)
-- 📈 View MLflow Logs
-
----
-
-### 🧪 Step 2: Reproduce All Experiments
-To run the exact 10 benchmarking experiments used in this project, use the src/run_sweep.py script. This script loops through 10 combinations of:
-
-- Model type (facebook/bart-base, gpt2)
-- Epochs (1 or 2)
-- Batch size (2 or 4)
-- Input length (256 or 384)
-- Target length (64 or 128)
-- Model family (Seq2Seq or Causal LM)
-
-Each experiment is run sequentially and logged via MLflow under the same "local-file" experiment name.
-
-▶️ Run All Benchmarking Sweeps
-```bash
-python src/run_sweep.py
-```
-
-This will:
-
-- Run all 10 model configuration experiments defined in the sweep list
-- Automatically handle BART vs. GPT-2 configuration logic
-- Log all metrics, ROUGE scores, and samples to MLflow
-- Sleep for 5 seconds between runs to ensure system stability
-
-⚠️ Make sure you've already set up your environment and installed requirements before running the sweep.
-
-After it's done, view all runs in one place using the MLflow UI:
-
-```bash
-mlflow ui
-```
-Then go to: http://127.0.0.1:5000 and browse the experiment "local-file".
-
----
-
-### 📊 Step 3: Analyze Results
-
-Once all experiments have been logged via MLflow, you can extract and analyze the benchmarking results using the following two scripts under `src/analysis_scripts/`.
-
----
-
-#### 📄 `extract_fine_tune_results_mlflow.py`
-
-This script exports all run metadata and final metrics into a single, clean `.csv` file for further analysis or visualization.
-
-It captures:
-- Model config parameters (e.g., model type, batch size, input/output lengths)
-- Final ROUGE scores, eval loss, and training speed
-- Run info such as status and start time
-
-✅ **Run it after completing all experiments**:
-
-```bash
-python src/analysis_scripts/extract_fine_tune_results_mlflow.py
-```
-
-This will save the file to:
-
-```
-fine_tune_analysis/mlflow_all_model_runs.csv
+python -m uvicorn main:app --reload
 ```
 
 ---
 
-#### 📈 `fine_tune_analysis.py`
+### 3. Mở API Docs
 
-This script loads all MLflow runs directly, filters the key metrics and parameters, and produces:
-
-- ✅ Leaderboards for best/worst runs
-- 📊 A runtime vs. ROUGE-1 scatter plot
-- 📊 A ROUGE-1/2/L bar chart (best run per model)
-- 📊 A parallel coordinates plot showing hyperparameter impact
-- 📁 A `summary.csv` file for downstream Excel / pandas analysis
-
-✅ **Run it anytime after experiments are logged**:
-
-```bash
-python src/analysis_scripts/fine_tune_analysis.py
-```
-
-This will output:
-- 3 figures saved to: `fine_tune_analysis/`
-- CSV summary: `fine_tune_analysis/summary.csv`
-
-> 📍 Make sure MLflow still points to the same `mlruns/` directory.
-
----
-
-### 🏁 Step 4: Run the Best Model at Scale
-
-After completing the sweep and analysis steps, we identified the best-performing configuration (based on ROUGE-1 and eval loss) and ran it on a **larger dataset slice** for a more robust final evaluation.
-
-This was done using the `src/final_train.py` script.
-
----
-
-#### 📄 `final_train.py`
-
-This script reruns the top configuration from the sweep:
-- `facebook/bart-base`
-- `1` epoch
-- `batch_size=2`
-- `max_input_length=384`, `max_target_length=64`
-
-...but scales up the dataset:
-- `train`: 25,000 examples  
-- `validation`: 1,250 examples  
-- `test`: 1,250 examples
-
-It performs:
-- ✅ Full training on the larger training split  
-- 📊 ROUGE-based evaluation on both validation and test sets  
-- 📝 Logging of metrics, lengths, and prediction examples to MLflow  
-- 💾 Saving of the final model and tokenizer to `deployment/model/` for downstream use
-
----
-
-#### ▶️ Run the final training script
-
-```bash
-python src/final_train.py
-```
-
-This will:
-- Log a new MLflow run named `bart-base_final_benchmark_config`
-- Store the final model under: `deployment/model/`
-- Log validation and test ROUGE scores to MLflow
-- Upload sample predictions to MLflow as artifacts
-
-> 📦 The saved model can now be reused for inference or integrated into a downstream application or API.
-
----
-
-### ⚙️ Step 5: MLOps Demo – Inference & Drift Monitoring
-
-This project includes a complete, lightweight **MLOps simulation** using FastAPI and basic drift monitoring heuristics.
-
----
-
-#### 🛰️ Start the Inference Server (Terminal 1)
-
-This will load the saved model from `deployment/model/` and expose a `/summarize` endpoint.
-
-```bash
-uvicorn src.mlops_demo.inference_api:app --reload --port 8000
-```
-
-The server will:
-- Tokenize and summarize incoming input
-- Log summary token length
-- Call drift monitors on:
-  - Input entropy & readability
-  - Summary length deviation
-  - Embedding-based cosine drift
-
-Drift logs are saved to:
+Truy cập:
 
 ```
-mlops_demo/drift_logs.log
-mlops_demo/alerts.json
+http://127.0.0.1:8000/docs
 ```
 
 ---
 
-#### 🤖 Run the Client Simulator (Terminal 2)
+## 📡 API Endpoints
 
-This script sends both real CNN/DailyMail articles and synthetic "drift-triggering" inputs to the server.
+### 🔹 GET `/`
 
-```bash
-python src/mlops_demo/demo_client.py
+Kiểm tra API hoạt động
+
+**Response:**
+
+```json
+{
+  "message": "Text Summarization API"
+}
 ```
 
-The script simulates:
-- Normal requests from the dataset (real-world cases)
-- Drift cases including:
-  - Short or very long inputs
-  - Low entropy (repeating tokens)
-  - High entropy (gibberish)
-  - Embedding-based novelty
-
-Each result includes latency, token count, and a truncated summary.
-
 ---
 
-#### 📉 Drift Logging & Monitoring
+### 🔹 GET `/health`
 
-The following drift types are monitored in `drift_monitor.py`:
+Kiểm tra trạng thái hệ thống
 
-- **Output Length Drift**  
-  Triggers when average summary length deviates from baseline (56 tokens ±10)
-- **Input Entropy Drift**  
-  Flags abnormally repetitive or highly chaotic input
-- **Embedding Drift**  
-  Computes cosine distance to a reference embedding baseline
+**Response:**
 
-Drift alerts are logged to:
-- `mlops_demo/drift_logs.log` (for audit/debug)
-- `mlops_demo/alerts.json` (for alert storage)
-
----
-
-#### 📊 Visualize Drift Over Time
-
-Use the following script to generate 4 time-series plots based on the logs:
-
-```bash
-python src/mlops_demo/drift_analyzer.py
+```json
+{
+  "status": "OK"
+}
 ```
 
-It will show:
-- Input length over time  
-- Input entropy and entropy-based drift  
-- Summary length and output drift  
-- Embedding cosine distance vs. threshold  
+---
+
+### 🔹 GET `/info`
+
+Thông tin project
+
+**Response:**
+
+```json
+{
+  "project": "Text Summarization API",
+  "version": "1.0",
+  "author": "Ngo Thanh Khang"
+}
+```
 
 ---
 
-> 🖥️ **Note:** You must run the server (`uvicorn ...`) and the client (`python demo_client.py`) in **separate terminals** at the same time.
+### 🔹 POST `/predict`
+
+Tóm tắt văn bản
+
+**Request:**
+
+```json
+{
+  "text": "Artificial intelligence is transforming industries. It enables automation and smarter decisions. Many companies adopt AI to improve productivity.",
+  "max_sentences": 2
+}
+```
+
+**Response:**
+
+```json
+{
+  "input_length": 150,
+  "num_sentences": 3,
+  "summary": "Artificial intelligence is transforming industries. Many companies adopt AI to improve productivity",
+  "summary_length": 110
+}
+```
 
 ---
 
-### 🚀 Next Steps
+## 🧪 Ví dụ sử dụng
 
-- ✅ Add Docker support for containerized deployment
-- ✅ Integrate real-time metrics dashboard for live monitoring
-- 🧪 Experiment with larger models (e.g., `bart-large`, `t5-base`)
-- 🧠 Incorporate LoRA or quantization for efficient fine-tuning
-- 🌐 Deploy API to a cloud platform (e.g., Hugging Face Spaces, Render)
-
-> Contributions and ideas are welcome!
+Sử dụng Swagger UI tại `/docs` để test trực tiếp API.
 
 ---
-### 👋 Contact
 
-Built by **Miray Özcan**  
-📧 `miray@uni.minerva.edu`  
-🌐 [linkedin.com/in/mirayozcan](https://linkedin.com/in/mirayozcan)
+## ⚠️ Hạn chế
 
-> If you found this useful or want to collaborate, feel free to reach out!
+* Không sử dụng mô hình AI thực (do hạn chế môi trường Python 3.14)
+* Chỉ sử dụng heuristic (độ dài câu) để đánh giá
+
+---
+
+## 🚀 Hướng phát triển
+
+* Tích hợp mô hình NLP như BART hoặc T5
+* Cải thiện thuật toán chấm điểm câu (TF-IDF, TextRank)
+* Deploy API lên cloud (Render, Railway)
+* Xây dựng giao diện frontend
+
+---
+
+## 👨‍💻 Tác giả
+
+**Ngô Thành Khang**
+
+---
+
+## 📄 License
+
+Dự án phục vụ mục đích học tập.
