@@ -38,6 +38,8 @@ bart-text-summarization-main/
 │── main.py
 │── requirements.txt
 │── README.md
+│── api_service_colab.ipynb
+│── test_api.py
 ```
 
 ---
