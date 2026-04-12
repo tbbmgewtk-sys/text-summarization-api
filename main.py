@@ -16,6 +16,7 @@ def info():
     }
 
 @app.post("/predict")
+@app.post("/summarize")
 def summarize(input: TextInput):
     # 1. Kiểm tra đầu vào cơ bản
     if not input.text:
