@@ -175,7 +175,7 @@ Sử dụng Swagger UI tại `/docs` để test trực tiếp API.
 
 ## 🎥 Demo Video
 
-👉 [Xem video demo tại đây](https://www.youtube.com/watch?v=VIDEO_ID)
+👉 [Xem video demo tại đây] (https://youtu.be/17web4pQD_c)
 
 ---
 
